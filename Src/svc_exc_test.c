@@ -1,28 +1,41 @@
+#include <stdio.h>
+#include <stdint.h>
 
-#include<stdio.h>
-#include<stdint.h>
-
-int main(){
-	//1. use svc instruction with argument
-
-	__asm("SVC #0X01");
-	while(1);
-
-}
-__attribute((naked))void SVC_Handler(void)
+int main(void)
 {
-	__asm("MRS R0,MSP");
-	__asm("B SVC_Handler_c ");
+    uint32_t data;
+
+
+    __asm volatile ("SVC #0x01");
+
+    __asm volatile ("MOV %0, R0" : "=r"(data));
+
+    printf("The returned value is: %d\r\n", data);
+
+    while (1);
 }
-void SVC_Handler_c(uint32_t *msp_top) {
 
 
-    uint32_t PC_val = msp_top[6];                    // Saved PC value
-    uint16_t *SVC_ins_addr = (uint16_t *)(PC_val - 2); // Address of SVC instruction
-    uint16_t svc_instr = *SVC_ins_addr;              // Read 16-bit Thumb instruction (0xDFxx)
-    uint8_t svc_num = (uint8_t)(svc_instr & 0xFF);   // Extract imm8 (SVC number)
+__attribute__((naked)) void SVC_Handler(void)
+{
+    __asm volatile (
+        "MRS R0, MSP       \n"
+        "B   SVC_Handler_c \n"
+    );
+}
+
+
+void SVC_Handler_c(uint32_t *msp_top)
+{
+
+    uint32_t PC_val = msp_top[6];
+    uint16_t *SVC_ins_addr = (uint16_t *)(PC_val - 2); // address of SVC instruction
+    uint8_t svc_num = (uint8_t)(*SVC_ins_addr & 0xFF); // extract imm8
 
     printf("Inside SVC handler\r\n");
     printf("SVC NUMBER IS : %d\r\n", svc_num);
-}
 
+    svc_num+=4;
+    // Set return value in stacked R0 so main() can read it
+    msp_top[0] =svc_num ;  // when handler returns, R0 = 0x1234ABCD
+}
